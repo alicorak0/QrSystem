@@ -166,7 +166,7 @@ if (!app.Environment.IsDevelopment())
 app.UseRouting();
 
 
-// app.UseMiddleware<TenantMiddleware>(); // 🔥 BURASI
+ app.UseMiddleware<TenantMiddleware>(); // 🔥 BURASI
 
 app.UseCors("FrontendCorsPolicy");
 app.UseResponseCaching(); // 🔥 BURAYA
