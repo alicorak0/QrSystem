@@ -1,0 +1,14 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# User-specific
+*.user
+*.suo
+*.tmp
+*.zip

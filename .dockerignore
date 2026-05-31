@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.git/
+**/.idea/
+**/.vscode/
+.git
+.vs
+README*
+*.user
+*.suo
+*.cache
+*.tmp
