@@ -18,8 +18,10 @@ namespace Core.Entities.Concrete
         public byte[] PasswordSalt { get; set; }
 
         public byte[] PasswordHash { get; set; }
-        public bool Status {  get; set; }   
+        public bool Status {  get; set; }
 
+        // Müşteri tenant ilişkiki kuracak property
+        public int? TenantId { get; set; } // nullable
 
     }
 

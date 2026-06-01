@@ -1,5 +1,6 @@
 ﻿using Business.Abstract;
 using Entities.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers
@@ -22,12 +23,16 @@ namespace WebAPI.Controllers
         public ActionResult Login(UserForLoginDto userForLoginDto)
         {
             var userToLogin = _authService.Login(userForLoginDto);
+
+            // 🔥 DEBUG BURAYA
+            Console.WriteLine("LOGIN RESULT: " + userToLogin.Message);
+
             if (!userToLogin.Success)
-                return BadRequest(userToLogin.Message);
+                return BadRequest(new { message = userToLogin.Message });
 
             var result = _authService.CreateAccessToken(userToLogin.Data);
             if (!result.Success)
-                return BadRequest(result.Message);
+                return BadRequest(new { message = result.Message });
 
             // JWT cookie olarak ekle
             var cookieOptions = new CookieOptions
@@ -49,12 +54,29 @@ namespace WebAPI.Controllers
             if (!userExists.Success)
                 return BadRequest(userExists.Message);
 
-            var registerResult = _authService.Register(userForRegisterDto, userForRegisterDto.Password);
+            // 🔥 TenantId middleware’den al
+            var tenantIdObj = HttpContext.Items["TenantId"];
+
+            if (tenantIdObj == null)
+                return BadRequest("Tenant bulunamadı");
+
+            int tenantId = (int)tenantIdObj;
+
+            // 🔥 Business'a gönder
+            var registerResult = _authService.Register(
+                userForRegisterDto,
+                userForRegisterDto.Password,
+                tenantId
+            );
+
+            if (!registerResult.Success)
+                return BadRequest(registerResult.Message);
+
             var result = _authService.CreateAccessToken(registerResult.Data);
             if (!result.Success)
                 return BadRequest(result.Message);
 
-            // JWT cookie olarak ekle
+            // 🔥 COOKIE
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
@@ -62,12 +84,14 @@ namespace WebAPI.Controllers
                 SameSite = SameSiteMode.Strict,
                 Expires = DateTime.UtcNow.AddHours(1)
             };
+
             Response.Cookies.Append("access_token", result.Data.Token, cookieOptions);
 
             return Ok(new { message = "Kayıt başarılı" });
         }
 
         //current user
+        [Authorize]
         [HttpGet("me")]
         public IActionResult Me()
         {

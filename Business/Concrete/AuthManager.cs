@@ -25,10 +25,11 @@ namespace Business.Concrete
             _tokenHelper = tokenHelper;
         }
 
-        public IDataResult<User> Register(UserForRegisterDto userForRegisterDto, string password)
+        public IDataResult<User> Register(UserForRegisterDto userForRegisterDto, string password, int tenantId)
         {
             byte[] passwordHash, passwordSalt;
             HashingHelper.CreateHash(password, out passwordHash, out passwordSalt);
+
             var user = new User
             {
                 Email = userForRegisterDto.Email,
@@ -36,10 +37,13 @@ namespace Business.Concrete
                 LastName = userForRegisterDto.LastName,
                 PasswordHash = passwordHash,
                 PasswordSalt = passwordSalt,
-                Status = true
+                Status = true,
+
+                TenantId = tenantId // 🔥 EN KRİTİK SATIR
             };
+
             _userService.Add(user);
-            
+
             return new SuccessDataResult<User>(user, "Kayıt Oldu");
         }
 

@@ -165,17 +165,19 @@ if (!app.Environment.IsDevelopment())
 
 app.UseRouting();
 
-
- app.UseMiddleware<TenantMiddleware>(); // 🔥 BURASI
-
 app.UseCors("FrontendCorsPolicy");
-app.UseResponseCaching(); // 🔥 BURAYA
-
-app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseAuthentication();
 
+app.UseMiddleware<TenantMiddleware>(); // 🔥 BURASI
+
+
 app.UseAuthorization();
+
+app.UseMiddleware<ExceptionMiddleware>();
+
+app.UseResponseCaching(); // 🔥 BURAYA
+
 
 
 app.UseStaticFiles();   //   for image upload
