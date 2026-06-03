@@ -27,10 +27,8 @@ var allowedCorsOrigins = new[]
         "https://localhost:4200",
 
     "https://nufusistatistikleri.online",
-    "https://www.nufusistatistikleri.online",
-    "https://efemkasapizgara.com",
-                "http://efemkasapizgara.com",
-                "https://www.efemkasapizgara.com"
+    "https://www.nufusistatistikleri.online"
+    
 };
 
 // Add services to the container.
@@ -82,7 +80,10 @@ builder.Services.AddCors(options =>
     "http://alicorak0.github.io", // EKLE BUNU
 
                 "https://nufusistatistikleri.online",
-                "https://www.nufusistatistikleri.online"
+                "https://www.nufusistatistikleri.online",
+                "https://efemkasapizgara.com",
+                "http://efemkasapizgara.com",
+                "https://www.efemkasapizgara.com"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
