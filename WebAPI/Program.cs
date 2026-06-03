@@ -27,7 +27,10 @@ var allowedCorsOrigins = new[]
         "https://localhost:4200",
 
     "https://nufusistatistikleri.online",
-    "https://www.nufusistatistikleri.online"
+    "https://www.nufusistatistikleri.online",
+    "https://efemkasapizgara.com",
+                "http://efemkasapizgara.com",
+                "https://www.efemkasapizgara.com"
 };
 
 // Add services to the container.
