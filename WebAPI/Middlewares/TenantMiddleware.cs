@@ -1,5 +1,4 @@
 ﻿using DataAccess.Concrete.EntityFramework;
-using System.Xml.Linq;
 
 namespace WebAPI.Middlewares
 {
@@ -12,13 +11,8 @@ namespace WebAPI.Middlewares
             _next = next;
         }
 
-
         public async Task Invoke(HttpContext context, MasterDbContext masterDb)
         {
-            var path = context.Request.Path.Value?.ToLower();
-
-            var isAuthRequest = path != null && path.Contains("/auth/login");
-
             var slug = context.Request.RouteValues["tenant"]?.ToString();
 
             if (!string.IsNullOrEmpty(slug))
@@ -33,25 +27,17 @@ namespace WebAPI.Middlewares
                     return;
                 }
 
-                // 🔥 DB SET
+                // 🔥 SADECE CONTEXT SET
                 context.Items["DatabaseName"] = tenant.DatabaseName;
                 context.Items["TenantSlug"] = tenant.Slug;
                 context.Items["TenantId"] = tenant.Id;
-
-                // 🔐 USER TENANT CHECK (ASIL KRİTİK KISIM)
-                var userTenantId = context.User?.FindFirst("tenant_id")?.Value;
-
-                if (!isAuthRequest && !string.IsNullOrEmpty(userTenantId))
-                {
-                    if (userTenantId != tenant.Id.ToString())
-                    {
-                        context.Response.StatusCode = 403;
-                        await context.Response.WriteAsync("Tenant mismatch");
-                        return;
-                    }
-                }
-
-                Console.WriteLine($"Tenant: {tenant.Slug} | DB: {tenant.DatabaseName}");
+            }
+            else
+            {
+                // 🔥 MASTER DB CASE
+                context.Items["DatabaseName"] = "QrMenuMaster";
+                context.Items["TenantSlug"] = null;
+                context.Items["TenantId"] = null;
             }
 
             await _next(context);

@@ -6,6 +6,8 @@ using Core.Utilities.Results;
 using Microsoft.AspNetCore.SignalR;
 using WebAPI.Hubs;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using WebAPI.Security;
 
 namespace WebAPI.Controllers
 {
@@ -23,7 +25,18 @@ namespace WebAPI.Controllers
 
         }
 
+        private Task NotifyTenantMenuUpdated()
+        {
+            var tenantSlug = HttpContext.Items["TenantSlug"]?.ToString();
+            if (string.IsNullOrWhiteSpace(tenantSlug))
+            {
+                return Task.CompletedTask;
+            }
+            return _hubContext.Clients.Group(MenuHub.GetGroupName(tenantSlug)).SendAsync("MenuUpdated");
+        }
 
+        //[ResponseCache(Duration = 120, Location = ResponseCacheLocation.Any)]
+        [EnableRateLimiting("medium")]
         [HttpGet("getall")]
         public IActionResult GetAll()
         {
@@ -40,14 +53,15 @@ namespace WebAPI.Controllers
 
 
         [Authorize(Roles = "admin")]
+        [EnableRateLimiting("low")]
+        [TenantMatch] // 🔥 Sadece kendi tenant'ına erişebilir
         [HttpPost("add")]
         public async Task<IActionResult> Add(Category category)
         {
             var result = _categoryService.Add(category);
             if (result.Success)
             {
-                // return Ok(new { message = "ali" });
-                await _hubContext.Clients.All.SendAsync("MenuUpdated");
+                await NotifyTenantMenuUpdated();
 
                 return Ok(result);
 
@@ -56,6 +70,8 @@ namespace WebAPI.Controllers
         }
 
         [Authorize(Roles = "admin")]
+        [EnableRateLimiting("low")]
+        [TenantMatch] // 🔥 Sadece kendi tenant'ına erişebilir
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -63,7 +79,7 @@ namespace WebAPI.Controllers
 
             if (result.Success)
             {
-                await _hubContext.Clients.All.SendAsync("MenuUpdated");
+                await NotifyTenantMenuUpdated();
 
                 return Ok(result);
 
@@ -74,6 +90,8 @@ namespace WebAPI.Controllers
 
 
         [Authorize(Roles = "admin")]
+        [EnableRateLimiting("low")]
+        [TenantMatch] // 🔥 Sadece kendi tenant'ına erişebilir
         [HttpPost("update")]
         public async Task<IActionResult> Update(Category category)
         {
@@ -81,7 +99,7 @@ namespace WebAPI.Controllers
 
             if (result.Success)
             {
-                await _hubContext.Clients.All.SendAsync("MenuUpdated");
+                await NotifyTenantMenuUpdated();
 
                 return Ok(result);
             }

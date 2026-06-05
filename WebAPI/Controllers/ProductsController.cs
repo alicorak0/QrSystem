@@ -13,6 +13,8 @@ using Core.Utilities.Results;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using WebAPI.Hubs;
+using WebAPI.Security;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace WebAPI.Controllers
 {
@@ -32,8 +34,20 @@ namespace WebAPI.Controllers
             _hubContext = hubContext;
         }
 
+        private Task NotifyTenantMenuUpdated()
+        {
+            var tenantSlug = HttpContext.Items["TenantSlug"]?.ToString();
+            if (string.IsNullOrWhiteSpace(tenantSlug))
+            {
+                return Task.CompletedTask;
+            }
+
+            return _hubContext.Clients.Group(MenuHub.GetGroupName(tenantSlug)).SendAsync("MenuUpdated");
+        }
+
+        //[ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
         [HttpGet("getall")]
-        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
+        [EnableRateLimiting("high")]
         public IActionResult GetAll() 
         {
 
@@ -49,8 +63,9 @@ namespace WebAPI.Controllers
         }
 
 
+        //[ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
         [HttpGet("getallfeaturedproduct")]
-        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
+        [EnableRateLimiting("high")]
         public IActionResult GetAllFeaturedProduct()
         {
 
@@ -67,8 +82,9 @@ namespace WebAPI.Controllers
 
 
         //İd ile tek ürün getirelim
+        //[ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
         [HttpGet("getbycategory")]
-        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
+        [EnableRateLimiting("medium")]
         public IActionResult GetByCategory(int categoryId) 
         { 
 
@@ -82,8 +98,9 @@ namespace WebAPI.Controllers
 
 
         //İd ile tek ürün getirelim
+        //[ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
         [HttpGet("getbycategoryname/{categoryName}")]
-        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
+        [EnableRateLimiting("medium")]
         public IActionResult GetByCategory(string categoryName)
         {
 
@@ -96,64 +113,30 @@ namespace WebAPI.Controllers
         }
 
         [Authorize(Roles = "admin")]
-        [HttpPost("add")]       
+        [Authorize(Policy = "TenantMatch")] // 🔥 Sadece kendi tenant'ına erişebilir
+        [HttpPost("add")]
+        [EnableRateLimiting("low")]
         public async Task<IActionResult> Add(Product product)
         {
             var result = _productService.Add(product);
             if (result.Success)
             {
-
-                await _hubContext.Clients.All.SendAsync("MenuUpdated");
+                await NotifyTenantMenuUpdated();
 
                 return Ok(result);
                                       // test için yazıldı
-                //var userId = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                //return Ok(new
-                //{
-                //    message = $"Ürün eklendi. Ekleyen UserId: {userId}"
-                    
-                //});
+                
             }
             return BadRequest(result);  
         }
 
 
-        //[HttpGet]
-        //public List<Product> Get()
-        //{
-        //    return new List<Product>
-        //    {
-        //        new Product{ProductId=1,ProductName="Elma"},
-        //        new Product{ProductId=1,ProductName="Elma"}
+     
 
-        //    };
-        //}
-
-
-
-
-
-
-
-
-        //[HttpGet]  //            [HttpGet("text")]
-        //public  string Get()
-        //{
-
-        //    return "Merhaba";
-        //}
-
-
-        ////[HttpGet("name")]
-        ////public IActionResult GetAction()
-        ////{
-        ////    return Ok(new { Name = "Ali" });
-        ////}
-
-
-        [Authorize(Roles = "admin")]
+        [Authorize(Roles = "admin,superadmin")]
+        [Authorize(Policy = "TenantMatch")]
         [HttpPost("update")]
+        [EnableRateLimiting("low")]
         public async Task<IActionResult> Update(Product product)
         {
             var result = _productService.Update(product);
@@ -161,7 +144,7 @@ namespace WebAPI.Controllers
             if (result.Success)
             {
                 // ✅ Güncelleme event
-                await _hubContext.Clients.All.SendAsync("MenuUpdated");
+                await NotifyTenantMenuUpdated();
                 return Ok(result);
             }
 
@@ -170,14 +153,16 @@ namespace WebAPI.Controllers
 
 
         [Authorize(Roles = "admin")]
+        [Authorize(Policy = "TenantMatch")]
         [HttpDelete("delete/{id}")]
+        [EnableRateLimiting("low")]
         public async Task<IActionResult> Delete(int id)
         {
             var result = _productService.Delete(id);
 
             if (result.Success)
             {
-                await _hubContext.Clients.All.SendAsync("MenuUpdated");
+                await NotifyTenantMenuUpdated();
 
                 return Ok(result);
 
@@ -188,8 +173,9 @@ namespace WebAPI.Controllers
 
 
         // GET: api/products/search?name=abc
+        //[ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
         [HttpGet("search")]
-        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
+        [EnableRateLimiting("medium")]
         public IActionResult Search([FromQuery] string name)
         {
             if (string.IsNullOrWhiteSpace(name))

@@ -1,4 +1,5 @@
-﻿using Entities.Concrete;
+﻿using Core.Entities.Concrete;
+using Entities.Concrete;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -14,5 +15,10 @@ namespace DataAccess.Concrete.EntityFramework
             : base(options) { }
 
         public DbSet<Tenant> Tenants { get; set; }
+        public DbSet<User> Users { get; set; }
+
+        public DbSet<OperationClaim> OperationClaims { get; set; }
+
+        public DbSet<UserOperationClaims> UserOperationClaims { get; set; }
     }
 }

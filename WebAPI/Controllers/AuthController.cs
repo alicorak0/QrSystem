@@ -2,6 +2,8 @@
 using Entities.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using WebAPI.Security;
 
 namespace WebAPI.Controllers
 {
@@ -19,6 +21,7 @@ namespace WebAPI.Controllers
 
         }
 
+        [EnableRateLimiting("low")]
         [HttpPost("login")]
         public ActionResult Login(UserForLoginDto userForLoginDto)
         {
@@ -47,6 +50,9 @@ namespace WebAPI.Controllers
             return Ok(new { message = "Login başarılı" });
         }
 
+
+        [Authorize(Roles = "superadmin")]
+        [EnableRateLimiting("low")]
         [HttpPost("register")]
         public ActionResult Register(UserForRegisterDto userForRegisterDto)
         {
@@ -92,6 +98,8 @@ namespace WebAPI.Controllers
 
         //current user
         [Authorize]
+        [Authorize(Policy = "TenantMatch")]
+        [EnableRateLimiting("medium")]
         [HttpGet("me")]
         public IActionResult Me()
         {

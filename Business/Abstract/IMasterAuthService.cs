@@ -10,16 +10,12 @@ using System.Threading.Tasks;
 
 namespace Business.Abstract
 {
-  public  interface IAuthService
+   public interface IMasterAuthService
     {
-        IDataResult<User> Register(UserForRegisterDto userForRegisterDto, string password, int tenantId);
-        IDataResult<User> Login(UserForLoginDto userForLoginDto);
+        IDataResult<User> Register(UserForRegisterDto dto, string password);
+
+        IDataResult<User> Login(UserForLoginDto dto);
         IResult UserExists(string email);
         IDataResult<AccessToken> CreateAccessToken(User user);
-
-
-
-
     }
-
 }

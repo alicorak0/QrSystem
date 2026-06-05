@@ -25,7 +25,7 @@ namespace Business.Concrete
             _categoryDal = categoryDal;
         }
 
-        //[CacheRemoveAspect]
+        [CacheRemoveAspect("ICategoryService.Get")]
         public IResult Add(Category category)
         {
 
@@ -44,7 +44,7 @@ namespace Business.Concrete
             return new SuccessResult(Messages.CategoryAdded);  //Result IResulttan türedi  sorun yok
         }
 
-        //[CacheRemoveAspect]
+        [CacheRemoveAspect("ICategoryService.Get")]
         public IResult DeleteById(int id)
         {
             var categoryToDelete = _categoryDal.Get(p => p.CategoryId== id);
@@ -71,7 +71,7 @@ namespace Business.Concrete
         }
 
 
-        //[CacheRemoveAspect]
+        [CacheRemoveAspect("ICategoryService.Get")]
         public IResult Update(Category category)
         {
             _categoryDal.Update(category);

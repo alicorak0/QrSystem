@@ -33,30 +33,22 @@ namespace DataAccess.Concrete.EntityFramework
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (optionsBuilder.IsConfigured)
-            {
                 return;
-            }
 
-            var dbName = _httpContextAccessor.HttpContext?.Items["DatabaseName"]?.ToString();
+            var dbName = _httpContextAccessor.HttpContext?
+                .Items["DatabaseName"]?.ToString();
+
             var baseConn = Environment.GetEnvironmentVariable("CONNECTION_STRING")
                 ?? _configuration.GetConnectionString("Base");
 
-            if (!string.IsNullOrWhiteSpace(baseConn))
-            {
-                var builder = new SqlConnectionStringBuilder(baseConn);
+            var builder = new SqlConnectionStringBuilder(baseConn);
 
-                if (!string.IsNullOrWhiteSpace(dbName))
-                {
-                    builder.InitialCatalog = dbName;
-                }
+            // 🔥 SAFE FALLBACK
+            builder.InitialCatalog = string.IsNullOrEmpty(dbName)
+                ? "QrMenuMaster"
+                : dbName;
 
-                optionsBuilder.UseSqlServer(builder.ConnectionString);
-            }
-            else
-            {
-                throw new InvalidOperationException("Base database connection string is missing. Set CONNECTION_STRING env var or ConnectionStrings:Base.");
-            }
-
+            optionsBuilder.UseSqlServer(builder.ConnectionString);
         }
 
         public DbSet<Product> Products { get; set; }
