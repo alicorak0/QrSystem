@@ -6,6 +6,7 @@ using Core.Utilities.Results;
 using DataAccess.Abstract;
 using DataAccess.Concrete.EntityFramework;
 using Entities.Concrete;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,12 +48,35 @@ namespace Business.Concrete
         [CacheRemoveAspect("ICategoryService.Get")]
         public IResult DeleteById(int id)
         {
-            var categoryToDelete = _categoryDal.Get(p => p.CategoryId== id);
+            var categoryToDelete = _categoryDal.Get(p => p.CategoryId == id);
             if (categoryToDelete == null)
                 return new ErrorResult("Category bulunamadı");
 
-            _categoryDal.Delete(categoryToDelete);
-            return new SuccessResult("Category silindi");
+            try
+            {
+                _categoryDal.Delete(categoryToDelete);
+                return new SuccessResult("Category silindi");
+            }
+            catch (DbUpdateException ex)
+            {
+                var fullException = ex.ToString() + " | " + (ex.InnerException?.ToString() ?? "");
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                
+                // Foreign key / constraint hatasını yakala (Products tablosu bağlantısı)
+                if (fullException.Contains("constraint", StringComparison.OrdinalIgnoreCase)
+                    || fullException.Contains("FK_", StringComparison.OrdinalIgnoreCase)
+                    || innerMessage.Contains("conflicted with", StringComparison.OrdinalIgnoreCase)
+                    || innerMessage.Contains("REFERENCE", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new ErrorResult("Bu kategoriye bağlı ürünler bulunduğu için silme işlemi yapılamıyor. Lütfen önce kategoriye ait ürünleri silin");
+                }
+
+                return new ErrorResult("Kategori silinirken bir hata oluştu: " + innerMessage);
+            }
+            catch (Exception ex)
+            {
+                return new ErrorResult("Kategori silinirken beklenmeyen bir hata oluştu: " + ex.Message);
+            }
         }
 
 

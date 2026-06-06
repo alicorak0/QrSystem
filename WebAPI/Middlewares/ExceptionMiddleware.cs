@@ -40,8 +40,8 @@ public class ExceptionMiddleware
 
             var result = JsonSerializer.Serialize(new
             {
-                Message = exception.Message,
-                StatusCode = statusCode
+                message = exception.Message,
+                statusCode = statusCode
             });
 
             await context.Response.WriteAsync(result);

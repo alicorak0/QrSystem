@@ -66,7 +66,7 @@ namespace WebAPI.Controllers
                 return Ok(result);
 
             }
-            return BadRequest(result);
+            return BadRequest(new { message = result.Message });
         }
 
         [Authorize(Roles = "admin")]
@@ -75,17 +75,24 @@ namespace WebAPI.Controllers
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var result = _categoryService.DeleteById(id);
-
-            if (result.Success)
+            try
             {
-                await NotifyTenantMenuUpdated();
+                var result = _categoryService.DeleteById(id);
 
-                return Ok(result);
+                if (result.Success)
+                {
+                    await NotifyTenantMenuUpdated();
 
+                    return Ok(result);
+
+                }
+
+                return BadRequest(new { message = result.Message });
             }
-
-            return BadRequest(result);
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Silme işlemi sırasında beklenmeyen bir hata oluştu: " + ex.Message });
+            }
         }
 
 
@@ -104,7 +111,7 @@ namespace WebAPI.Controllers
                 return Ok(result);
             }
 
-            return BadRequest(result);
+            return BadRequest(new { message = result.Message });
         }
 
 
