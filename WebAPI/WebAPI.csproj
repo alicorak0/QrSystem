@@ -8,6 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="wwwroot\uploads\products\**" />
+    <Content Remove="wwwroot\uploads\products\**" />
+    <EmbeddedResource Remove="wwwroot\uploads\products\**" />
+    <None Remove="wwwroot\uploads\products\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.9" />
@@ -22,10 +29,6 @@
     <ProjectReference Include="..\Core\Core.csproj" />
     <ProjectReference Include="..\DataAccess\DataAccess.csproj" />
     <ProjectReference Include="..\Entities\Entities.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="wwwroot\uploads\products\" />
   </ItemGroup>
 
 </Project>
