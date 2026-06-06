@@ -24,7 +24,20 @@ namespace Core.Extensions
     {
         public IEnumerable<ValidationFailure> Errors { get; set; }
 
+        public override string ToString()
+        {
+            // Sadece hata mesajlarını ekle
+            var errorMessages = Errors?.Select(e => e.ErrorMessage).ToList() ?? new List<string>();
+            
+            var result = new
+            {
+                StatusCode = StatusCode,
+                Message = Message,
+                Errors = errorMessages
+            };
 
+            return JsonConvert.SerializeObject(result);
+        }
     }
 
 }

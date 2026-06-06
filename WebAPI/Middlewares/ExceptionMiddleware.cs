@@ -1,4 +1,5 @@
 ﻿using Core.CrossCuttingConcern.Exceptions;
+using FluentValidation;
 using System.Text.Json;
 
 public class ExceptionMiddleware
@@ -33,14 +34,23 @@ public class ExceptionMiddleware
             {
                 AuthenticationException => 401,
                 AuthorizationDeniedException => 403,
+                ValidationException => 400, // 🔥 EKLENDİ
                 _ => 500
             };
 
             context.Response.StatusCode = statusCode;
 
+            string message = exception.Message;
+
+            // 🔥 SADECE VALIDATION MESAJINI TEMİZLE
+            if (exception is ValidationException ve)
+            {
+                message = ve.Errors.First().ErrorMessage;
+            }
+
             var result = JsonSerializer.Serialize(new
             {
-                message = exception.Message,
+                message = message,
                 statusCode = statusCode
             });
 

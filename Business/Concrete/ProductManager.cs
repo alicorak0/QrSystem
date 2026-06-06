@@ -46,8 +46,7 @@ namespace Business.Concrete
             _httpContextAccessor = httpContextAccessor;
         }
 
-        //[ValidationAspect(typeof(ProductValidator))]
-
+        [ValidationAspect(typeof(ProductValidator))]
         [CacheRemoveAspect("IProductService.Get")]
         public IResult Add(Product product)
         {
@@ -157,7 +156,7 @@ namespace Business.Concrete
         }
 
         //[CacheRemoveAspect("IProductService.Get")]
-        //[ValidationAspect(typeof(ProductValidator))]
+        [ValidationAspect(typeof(ProductValidator))]
         [CacheRemoveAspect("IProductService.Get")]
         public IResult Update(Product product)
         {

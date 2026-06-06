@@ -13,13 +13,41 @@ namespace Business.ValidationRules.FluentValidation
     {
         public ProductValidator() 
         {
-            RuleFor(p => p.ProductName).MinimumLength(2).WithMessage("Ürün ismi iki karakterden uzun olmalı");
-            RuleFor(p => p.ProductName).NotEmpty().WithMessage("Ürün İsmi Boş olamaz");
-            //Koşullu Valdiate  örneğin Category'e göre Kuralar getirme
+                 RuleFor(p => p.ProductName)
+     .NotEmpty()
+     .WithMessage("Ürün adı boş olamaz.");
 
+      RuleFor(p => p.ProductName)
+          .MinimumLength(2)
+          .WithMessage("Ürün adı en az 2 karakter olmalıdır.");
 
-            //  RuleFor(P => P.ProductName).Must(P => P[0] == 'A');     
-           // RuleFor(p => p.ProductName).Must(StartWithA);
+      RuleFor(p => p.ProductName)
+          .MaximumLength(40)
+          .WithMessage("Ürün adı en fazla 40 karakter olabilir.");
+
+      RuleFor(p => p.Description)
+          .MaximumLength(360)
+          .WithMessage("Ürün açıklaması en fazla 360 karakter olabilir.");
+
+      RuleFor(p => p.Price)
+          .NotNull()
+          .WithMessage("Fiyat boş olamaz.");
+
+      RuleFor(p => p.Price)
+          .GreaterThan(0)
+          .WithMessage("Ürün fiyatı 0'dan büyük olmalıdır.");
+
+      RuleFor(p => p.CategoryId)
+          .GreaterThan(0)
+          .WithMessage("Lütfen bir kategori seçiniz.");
+
+      RuleFor(p => p.ProductName)
+          .Matches(@"^[a-zA-ZğüşıöçĞÜŞİÖÇ0-9\s\-\&\(\)\.]+$")
+          .WithMessage("Ürün adı geçersiz karakter içeriyor.");
+
+      RuleFor(p => p.Description)
+          .Must(x => x == null || !string.IsNullOrWhiteSpace(x))
+          .WithMessage("Ürün açıklaması yalnızca boşluklardan oluşamaz.");
         }
 
         //private bool StartWithA(string arg)
