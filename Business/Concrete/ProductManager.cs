@@ -161,6 +161,16 @@ namespace Business.Concrete
         [CacheRemoveAspect("IProductService.Get")]
         public IResult Update(Product product)
         {
+
+            IResult results = BusinessRules.Run(
+    CheckIfProductNameExistsForUpdate(product.ProductId, product.ProductName));
+
+            if (results != null)
+            {
+                return results;
+            }
+
+
             //dosya adını tenanta göre al
 
             var tenantSlug = _httpContextAccessor.HttpContext?
@@ -262,6 +272,22 @@ namespace Business.Concrete
             return new SuccessResult();
 
         }
+               // Update sırasında çalıştırılan metot
+        private IResult CheckIfProductNameExistsForUpdate(int productId, string productName)
+        {
+            var result = _productDal.Get(p =>
+                p.ProductName == productName &&
+                p.ProductId != productId);
+
+            if (result != null)
+            {
+                return new ErrorResult("Bu isimde başka bir ürün bulunmaktadır.");
+            }
+
+            return new SuccessResult();
+        }
+
+
         //private IResult CheckIfCategoryLimitExceded()
         //{
         //    var result = _categoryService.GetAll();
