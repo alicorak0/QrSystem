@@ -36,7 +36,7 @@ namespace WebAPI.Controllers
         }
 
         //[ResponseCache(Duration = 120, Location = ResponseCacheLocation.Any)]
-        [EnableRateLimiting("low")]
+        [EnableRateLimiting("medium")]
         [HttpGet("getall")]
         public IActionResult GetAll()
         {
