@@ -20,8 +20,8 @@ namespace WebAPI.Middlewares
                 context.Response.Cookies.Append(VisitorIdCookieName, visitorId, new CookieOptions
                 {
                     HttpOnly = true,
-                    SameSite = SameSiteMode.Lax,
-                    Secure = context.Request.IsHttps,
+                    SameSite = SameSiteMode.None,
+                    Secure = true,
                     Expires = DateTimeOffset.UtcNow.AddYears(1),
                     IsEssential = true
                 });

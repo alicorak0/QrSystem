@@ -68,6 +68,7 @@ builder.Services.AddRateLimiter(options =>
         {
             userName = "anon";
         }
+        Console.WriteLine(userName);
 
         return $"{tenantSlug}:{userName}";
     }
