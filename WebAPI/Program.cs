@@ -129,7 +129,7 @@ builder.Services.AddRateLimiter(options =>
 // DbContext
 builder.Services.AddDbContextFactory<QrMenuContext>();
 
-builder.Services.AddDbContext<MasterDbContext>(options =>
+builder.Services.AddDbContextFactory<MasterDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Base"))
 );
 

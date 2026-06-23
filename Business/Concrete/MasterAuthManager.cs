@@ -13,64 +13,68 @@ using System.Threading.Tasks;
 
 namespace Business.Concrete
 {
-   public class MasterAuthManager:IMasterAuthService
+    public class MasterAuthManager : IMasterAuthService
     {
-        private readonly MasterDbContext _context;
+        private readonly IMasterUserService _userService;
         private readonly ITokenHelper _tokenHelper;
 
-        public MasterAuthManager(MasterDbContext context, ITokenHelper tokenHelper)
+        public MasterAuthManager(
+            IMasterUserService userService,
+            ITokenHelper tokenHelper)
         {
-            _context = context;
+            _userService = userService;
             _tokenHelper = tokenHelper;
         }
 
         public IDataResult<User> Login(UserForLoginDto dto)
         {
-            var user = _context.Users.FirstOrDefault(x => x.Email == dto.Email);
+            var user = _userService.GetByMail(dto.Email);
 
             if (user == null)
                 return new ErrorDataResult<User>("Kullanıcı Bulunamadı");
 
-            if (!HashingHelper.VerifyPassword(dto.Password, user.PasswordHash, user.PasswordSalt))
+            if (!HashingHelper.VerifyPassword(
+                dto.Password,
+                user.PasswordHash,
+                user.PasswordSalt))
+            {
                 return new ErrorDataResult<User>("Hatalı Parola");
+            }
 
             return new SuccessDataResult<User>(user);
         }
 
         public IResult UserExists(string email)
         {
-            return _context.Users.Any(x => x.Email == email)
-                ? new ErrorResult("Kullanıcı var")
-                : new SuccessResult();
+            if (_userService.GetByMail(email) != null)
+            {
+                return new ErrorResult("Kullanıcı var");
+            }
+
+            return new SuccessResult();
         }
 
         public IDataResult<AccessToken> CreateAccessToken(User user)
         {
-            var claims = GetClaims(user);
+            var claims = _userService.GetClaims(user);
+
             var accessToken = _tokenHelper.CreateToken(user, claims);
-            return new SuccessDataResult<AccessToken>(accessToken, "Token Oluşturuldu");
+
+            return new SuccessDataResult<AccessToken>(
+                accessToken,
+                "Token Oluşturuldu");
         }
 
-        private List<OperationClaim> GetClaims(User user)
+        public IDataResult<User> Register(
+            UserForRegisterDto dto,
+            string password)
         {
-            var result = from o in _context.OperationClaims
-                         join uo in _context.UserOperationClaims
-                         on o.Id equals uo.OperationClaimId
-                         where uo.UserId == user.Id
-                         select new OperationClaim
-                         {
-                             Id = o.Id,
-                             Name = o.Name
-                         };
-
-return result?.ToList() ?? new List<OperationClaim>();       
-        }
-
-        public IDataResult<User> Register(UserForRegisterDto dto, string password)
-        {
-
             byte[] hash, salt;
-            HashingHelper.CreateHash(password, out hash, out salt);
+
+            HashingHelper.CreateHash(
+                password,
+                out hash,
+                out salt);
 
             var user = new User
             {
@@ -82,11 +86,9 @@ return result?.ToList() ?? new List<OperationClaim>();
                 Status = true
             };
 
-            _context.Users.Add(user);
-            _context.SaveChanges();
+            _userService.Add(user);
 
             return new SuccessDataResult<User>(user);
         }
-
     }
 }
