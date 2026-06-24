@@ -2,7 +2,6 @@
 using Entities.Concrete;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Core.Utilities.Results;
 using Microsoft.AspNetCore.SignalR;
 using WebAPI.Hubs;
 using Microsoft.AspNetCore.Authorization;
@@ -12,8 +11,7 @@ using WebAPI.Security;
 namespace WebAPI.Controllers
 {
     [Route("api/{tenant}/[controller]")]
-    [ApiController]
-    public class CategoriesController : ControllerBase
+    public class CategoriesController : ApiControllerBase
     {
         ICategoryService _categoryService;
         private IHubContext<MenuHub> _hubContext;
@@ -42,12 +40,7 @@ namespace WebAPI.Controllers
         {
 
             var result = _categoryService.GetAll();
-            if (result.Success)
-            {
-                return Ok(result); // data döndürdüm  
-            }
-
-            return BadRequest(result);
+            return FromDataResult(result);
 
         }
 
@@ -63,10 +56,10 @@ namespace WebAPI.Controllers
             {
                 await NotifyTenantMenuUpdated();
 
-                return Ok(result);
+                return Success(data: null, message: result.Message);
 
             }
-            return BadRequest(new { message = result.Message });
+            return Error(result.Message);
         }
 
         [Authorize(Roles = "admin")]
@@ -75,24 +68,17 @@ namespace WebAPI.Controllers
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            try
+            var result = _categoryService.DeleteById(id);
+
+            if (result.Success)
             {
-                var result = _categoryService.DeleteById(id);
+                await NotifyTenantMenuUpdated();
 
-                if (result.Success)
-                {
-                    await NotifyTenantMenuUpdated();
+                return Success(data: null, message: result.Message);
 
-                    return Ok(result);
-
-                }
-
-                return BadRequest(new { message = result.Message });
             }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Silme işlemi sırasında beklenmeyen bir hata oluştu: " + ex.Message });
-            }
+
+            return Error(result.Message);
         }
 
 
@@ -108,10 +94,10 @@ namespace WebAPI.Controllers
             {
                 await NotifyTenantMenuUpdated();
 
-                return Ok(result);
+                return Success(data: null, message: result.Message);
             }
 
-            return BadRequest(new { message = result.Message });
+            return Error(result.Message);
         }
 
 

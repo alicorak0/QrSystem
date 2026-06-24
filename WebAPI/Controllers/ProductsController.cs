@@ -9,7 +9,6 @@ using System.Reflection.Metadata.Ecma335;
 using Microsoft.AspNetCore.Authorization;
 using Core.Aspects.Autofac.Caching;
 using Business.BusinessAspects.Autofac;
-using Core.Utilities.Results;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using WebAPI.Hubs;
@@ -19,8 +18,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace WebAPI.Controllers
 {
     [Route("api/{tenant}/[controller]")] //Api End Point'i yani  insanlar api/controller yazacak URL kısmına 
-    [ApiController]  // Attribute olmalı Controller için
-    public class ProductsController : ControllerBase
+    public class ProductsController : ApiControllerBase
     {
        
         IProductService _productService;
@@ -53,12 +51,7 @@ namespace WebAPI.Controllers
 
             //Thread.Sleep(5000);
             var result = _productService.GetAll();
-            if (result.Success) 
-            {
-                return Ok(result); // data döndürdüm  
-            }
-
-            return BadRequest(result);
+            return FromDataResult(result);
 
         }
 
@@ -71,12 +64,7 @@ namespace WebAPI.Controllers
 
             //Thread.Sleep(5000);
             var result = _productService.GetFeaturedProduct();
-            if (result.Success)
-            {
-                return Ok(result); // data döndürdüm  
-            }
-
-            return BadRequest(result);
+            return FromDataResult(result);
 
         }
 
@@ -89,11 +77,7 @@ namespace WebAPI.Controllers
         { 
 
                 var result =_productService.GetAllByCategory(categoryId);
-            if (result.Success) 
-            {
-                return Ok(result);            
-            }
-              return BadRequest(result);
+            return FromDataResult(result);
         }
 
 
@@ -105,11 +89,7 @@ namespace WebAPI.Controllers
         {
 
             var result = _productService.GetByCategoryName(categoryName);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-            return BadRequest(result);
+            return FromDataResult(result);
         }
 
         [Authorize(Roles = "admin")]
@@ -123,11 +103,11 @@ namespace WebAPI.Controllers
             {
                 await NotifyTenantMenuUpdated();
 
-                return Ok(result);
+                return Success(data: null, message: result.Message);
                                       // test için yazıldı
                 
             }
-            return BadRequest(result);  
+            return Error(result.Message);  
         }
 
 
@@ -145,10 +125,10 @@ namespace WebAPI.Controllers
             {
                 // ✅ Güncelleme event
                 await NotifyTenantMenuUpdated();
-                return Ok(result);
+                return Success(data: null, message: result.Message);
             }
 
-            return BadRequest(result);
+            return Error(result.Message);
         }
 
 
@@ -164,11 +144,11 @@ namespace WebAPI.Controllers
             {
                 await NotifyTenantMenuUpdated();
 
-                return Ok(result);
+                return Success(data: null, message: result.Message);
 
             }
 
-            return BadRequest(result);
+            return Error(result.Message);
         }
 
 
@@ -180,27 +160,20 @@ namespace WebAPI.Controllers
         {
             if (string.IsNullOrWhiteSpace(name))
             {
-return Ok(new DataResult<List<Product>>(
-            new List<Product>(), // boş liste
-            true,                // success
-            "Lütfen bir ürün adı girin" // mesaj
-        ));            }
+                return Success(new List<Product>(), "Lutfen bir urun adi girin");
+            }
 
-            IDataResult<List<Product>> result = _productService.ProductSearch(name);
+            var result = _productService.ProductSearch(name);
 
             if (result.Success)
             {
                 if (result.Data.Count == 0)     // bOŞ LİSTE DÖNDÜR SONUÇ BULUNAMADI
-                    return Ok(new DataResult<List<Product>>(
-       result.Data, // boş liste
-       true,        // success
-       "Sonuç Bulunamadı" // mesaj
-   ));
+                    return Success(result.Data, "Sonuc bulunamadi");
 
-                return Ok(result); // 200 + Data + Message
+                return Success(result.Data, result.Message);
             }
 
-            return BadRequest(result.Message);
+            return Error(result.Message);
         }
 
 

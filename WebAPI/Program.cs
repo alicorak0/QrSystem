@@ -24,7 +24,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
-using WebAPI.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +55,18 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            success = false,
+            message = "Cok fazla istek gonderdiniz. Lutfen daha sonra tekrar deneyin."
+        });
+
+        await context.HttpContext.Response.WriteAsync(payload, token);
+    };
 
     string ResolveClientKey(HttpContext context)
     {
@@ -187,13 +198,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             context.HandleResponse();
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode = 401;
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 
             return context.Response.WriteAsync(
                 JsonSerializer.Serialize(new
                 {
-                    Message = Messages.AuthenticationError,
-                    StatusCode = 401
+                    success = false,
+                    message = Messages.AuthenticationError
+                })
+            );
+        },
+
+        OnForbidden = context =>
+        {
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+
+            return context.Response.WriteAsync(
+                JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    message = Messages.AuthorizationDenied
                 })
             );
         }
@@ -264,7 +289,7 @@ app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
 
 // Exception handling
-app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<WebAPI.Middlewares.ExceptionMiddleware>();
 
 // caching
 app.UseResponseCaching();

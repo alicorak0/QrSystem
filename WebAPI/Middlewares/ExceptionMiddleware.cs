@@ -2,59 +2,66 @@
 using FluentValidation;
 using System.Text.Json;
 
-public class ExceptionMiddleware
+namespace WebAPI.Middlewares
 {
-    private readonly RequestDelegate _next;
-
-    public ExceptionMiddleware(RequestDelegate next)
+    public class ExceptionMiddleware
     {
-        _next = next;
-    }
+        private readonly RequestDelegate _next;
 
-    public async Task Invoke(HttpContext context)
-    {
-        try
+        public ExceptionMiddleware(RequestDelegate next)
         {
-            await _next(context);
+            _next = next;
         }
-        catch (Exception exception)
+
+        public async Task Invoke(HttpContext context)
         {
-            await HandleExceptionAsync(context, exception);
-        }
-    }
-
-    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
-    {
-        if (!context.Response.HasStarted)
-        {
-            context.Response.Clear();
-            context.Response.ContentType = "application/json";
-
-            int statusCode = exception switch
+            try
             {
-                AuthenticationException => 401,
-                AuthorizationDeniedException => 403,
-                ValidationException => 400, // 🔥 EKLENDİ
-                _ => 500
-            };
-
-            context.Response.StatusCode = statusCode;
-
-            string message = exception.Message;
-
-            // 🔥 SADECE VALIDATION MESAJINI TEMİZLE
-            if (exception is ValidationException ve)
-            {
-                message = ve.Errors.First().ErrorMessage;
+                await _next(context);
             }
-
-            var result = JsonSerializer.Serialize(new
+            catch (Exception exception)
             {
-                message = message,
-                statusCode = statusCode
-            });
+                await HandleExceptionAsync(context, exception);
+            }
+        }
 
-            await context.Response.WriteAsync(result);
+        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        {
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Clear();
+                context.Response.ContentType = "application/json";
+
+                int statusCode = exception switch
+                {
+                    AuthenticationException => StatusCodes.Status401Unauthorized,
+                    AuthorizationDeniedException => StatusCodes.Status403Forbidden,
+                    ValidationException => StatusCodes.Status400BadRequest,
+                    _ => StatusCodes.Status500InternalServerError
+                };
+
+                context.Response.StatusCode = statusCode;
+
+                string message = exception.Message;
+
+                if (exception is ValidationException validationException)
+                {
+                    message = validationException.Errors.FirstOrDefault()?.ErrorMessage ?? message;
+                }
+
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    message = "Beklenmeyen bir hata olustu.";
+                }
+
+                var result = JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    message
+                });
+
+                await context.Response.WriteAsync(result);
+            }
         }
     }
 }

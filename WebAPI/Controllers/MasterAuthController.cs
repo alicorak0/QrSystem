@@ -6,8 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace WebAPI.Controllers
 {
     [Route("api/auth")]
-    [ApiController]
-    public class MasterAuthController : ControllerBase
+    public class MasterAuthController : ApiControllerBase
     {
         private readonly IMasterAuthService _masterAuthService;
 
@@ -22,11 +21,13 @@ namespace WebAPI.Controllers
             var result = _masterAuthService.Login(dto); // 👈 MASTER DB
 
             if (!result.Success)
-                return BadRequest(result.Message);
+                return Error(result.Message);
 
             var token = _masterAuthService.CreateAccessToken(result.Data);
+            if (!token.Success)
+                return Error(token.Message);
 
-            return Ok(new { token = token.Data.Token });
+            return Success(new { token = token.Data.Token }, token.Message);
         }
 
         // 👤 REGISTER (SADECE USER CREATE)
@@ -36,13 +37,12 @@ namespace WebAPI.Controllers
             var result = _masterAuthService.Register(dto, dto.Password);
 
             if (!result.Success)
-                return BadRequest(result.Message);
+                return Error(result.Message);
 
-            return Ok(new
+            return Success(new
             {
-                message = "Kullanıcı oluşturuldu",
                 userId = result.Data.Id
-            });
+            }, "Kullanici olusturuldu");
         }
     }
 }

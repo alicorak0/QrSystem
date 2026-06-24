@@ -19,8 +19,7 @@ using Core.Utilities.Helpers;
 namespace WebAPI.Controllers
 {
     [Route("api/{tenant}/[controller]")] //Api End Point'i yani  insanlar api/controller yazacak URL kısmına 
-    [ApiController]  // Attribute olmalı Controller için
-    public class UploadController : ControllerBase
+    public class UploadController : ApiControllerBase
     {
 
 
@@ -36,25 +35,25 @@ namespace WebAPI.Controllers
         {
             // 1️⃣ Boş mu?
             if (image == null || image.Length == 0)
-                return BadRequest("Dosya yok.");
+                return Error("Dosya yok.");
 
 
 // 2️⃣ Boyut limiti (max 5MB)
 if (image.Length > 5 * 1024 * 1024)
-                return BadRequest("Dosya çok büyük (max 5MB).");
+                return Error("Dosya cok buyuk (max 5MB).");
 
             // 3️⃣ Sadece izin verilen tipler
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
             var ext = Path.GetExtension(image.FileName).ToLower();
 
             if (!allowedExtensions.Contains(ext))
-                return BadRequest("Sadece jpg/png formatları izinli.");
+                return Error("Sadece jpg/png formatlari izinli.");
 
             // 4️⃣ Klasör yolu
             var tenantSlug = HttpContext.Items["TenantSlug"]?.ToString();
 
             if (string.IsNullOrEmpty(tenantSlug))
-                return BadRequest("Tenant bulunamadı");
+                return Error("Tenant bulunamadi");
 
             // 🔥 KLASÖR
             var folder = Path.Combine(
@@ -85,11 +84,11 @@ if (image.Length > 5 * 1024 * 1024)
             }
 
             // 7️⃣ Dönüş
-            return Ok(new
+            return Success(new
             {
                 fileName,
                 url = fileName
-            });
+            }, "Dosya yuklendi.");
 
 
 }
