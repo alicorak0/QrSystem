@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +53,39 @@ builder.Services.AddSignalR();
 // HttpContext
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 2;
+
+    var knownProxies = builder.Configuration.GetSection("ReverseProxy:KnownProxies").Get<string[]>();
+    if (knownProxies is not null)
+    {
+        foreach (var proxy in knownProxies)
+        {
+            if (IPAddress.TryParse(proxy, out var proxyIp))
+            {
+                options.KnownProxies.Add(proxyIp);
+            }
+        }
+    }
+
+    var knownNetworks = builder.Configuration.GetSection("ReverseProxy:KnownNetworks").Get<string[]>();
+    if (knownNetworks is not null)
+    {
+        foreach (var network in knownNetworks)
+        {
+            var parts = network.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 2
+                && IPAddress.TryParse(parts[0], out var prefix)
+                && int.TryParse(parts[1], out var prefixLength))
+            {
+                options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, prefixLength));
+            }
+        }
+    }
+});
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -68,20 +102,53 @@ builder.Services.AddRateLimiter(options =>
         await context.HttpContext.Response.WriteAsync(payload, token);
     };
 
+    static string NormalizeIp(IPAddress ipAddress)
+    {
+        return ipAddress.IsIPv4MappedToIPv6
+            ? ipAddress.MapToIPv4().ToString()
+            : ipAddress.ToString();
+    }
+
+    static string ResolveClientIp(HttpContext context)
+    {
+        if (context.Connection.RemoteIpAddress is not null)
+        {
+            return NormalizeIp(context.Connection.RemoteIpAddress);
+        }
+
+        if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor)
+            && !string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            var firstIp = forwardedFor.ToString().Split(',')[0].Trim();
+            if (IPAddress.TryParse(firstIp, out var parsedIp))
+            {
+                return NormalizeIp(parsedIp);
+            }
+        }
+
+        return "unknown-ip";
+    }
+
     string ResolveClientKey(HttpContext context)
     {
+        const string rateLimiterLogOnceKey = "__RateLimiterKeyLogged";
         var tenantSlug = context.Request.RouteValues["tenant"]?.ToString() ?? "global";
-        var userName = context.User?.Identity?.IsAuthenticated == true
-            ? context.User.Identity.Name
-            : context.Request.Cookies["VisitorId"] ?? "anon";
+        var visitorId = context.Request.Cookies["VisitorId"];
+        var trimmedVisitorId = visitorId?.Trim();
+        var usedVisitorId = !string.IsNullOrWhiteSpace(trimmedVisitorId);
+        var clientIdentity = usedVisitorId
+            ? $"visitor:{trimmedVisitorId}"
+            : $"ip:{ResolveClientIp(context)}";
+        var partitionKey = $"{tenantSlug}:{clientIdentity}";
 
-        if (string.IsNullOrWhiteSpace(userName))
+        if (!context.Items.ContainsKey(rateLimiterLogOnceKey))
         {
-            userName = "anon";
+            Console.WriteLine(
+                $"[RateLimiter] {context.Request.Method} {context.Request.Path} Trace={context.TraceIdentifier} source={(usedVisitorId ? "VisitorId" : "IP")} key={partitionKey}");
+            context.Items[rateLimiterLogOnceKey] = true;
         }
-        Console.WriteLine(userName);
 
-        return $"{tenantSlug}:{userName}";
+        return partitionKey;
     }
 
     var defaultLimiterOptions = new SlidingWindowRateLimiterOptions
@@ -257,11 +324,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-    ForwardLimit = 1
-});
+app.UseForwardedHeaders();
 
 app.UseRouting();
 
