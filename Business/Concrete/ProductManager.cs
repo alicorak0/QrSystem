@@ -193,7 +193,7 @@ namespace Business.Concrete
             // ----------------------------
             // 1) FOTO SİLME DURUMU
             // ----------------------------
-            if (product.Image == "noPhoto.jpg" && oldProduct.Image != "noPhoto.jpg")
+            if (product.Image == "nophoto.jpg" && oldProduct.Image != "nophoto.jpg")
             {
                 var oldPath = Path.Combine(folder, oldProduct.Image);
 
@@ -202,7 +202,7 @@ namespace Business.Concrete
                     System.IO.File.Delete(oldPath);
                 }
 
-                product.Image = "noPhoto.jpg";
+                product.Image = "nophoto.jpg";
             }
 
             // ----------------------------
