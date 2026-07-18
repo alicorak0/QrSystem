@@ -38,12 +38,15 @@ namespace Business.Concrete
         ICategoryService _categoryService;
         private readonly IMemoryCache _memoryCache; // <-- inject edilen cache
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public ProductManager(IProductDal productDal,ICategoryService categoryService, IMemoryCache memoryCache, IHttpContextAccessor httpContextAccessor) // method injection // veri her  yerden gelebilir bağımsız memory or DB
+        private readonly IR2StorageService _r2StorageService;
+
+        public ProductManager(IProductDal productDal,ICategoryService categoryService, IMemoryCache memoryCache, IHttpContextAccessor httpContextAccessor, IR2StorageService r2StorageService) // method injection // veri her  yerden gelebilir bağımsız memory or DB
         {
             _productDal = productDal;
             _categoryService = categoryService; // Category ilgilend,iren kural varsa servisini dahil ederim
             _memoryCache = memoryCache;
             _httpContextAccessor = httpContextAccessor;
+            _r2StorageService = r2StorageService;
         }
 
         [ValidationAspect(typeof(ProductValidator))]
@@ -137,6 +140,14 @@ namespace Business.Concrete
             if (productToDelete == null)
                 return new ErrorResult("Ürün bulunamadı");
 
+            var tenantSlug = _httpContextAccessor.HttpContext?.Items["TenantSlug"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(tenantSlug) && !string.IsNullOrWhiteSpace(productToDelete.Image) && !IsCommonImage(productToDelete.Image))
+            {
+                _r2StorageService.DeleteProductImageAsync(tenantSlug, productToDelete.Image)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+
             _productDal.Delete(productToDelete);
             return new SuccessResult("Ürün silindi");
         }
@@ -169,21 +180,15 @@ namespace Business.Concrete
                 return results;
             }
 
-
-            //dosya adını tenanta göre al
-
             var tenantSlug = _httpContextAccessor.HttpContext?
     .Items["TenantSlug"]?.ToString();
+            if (string.IsNullOrWhiteSpace(tenantSlug))
+            {
+                return new ErrorResult("Tenant bulunamadi");
+            }
 
-            var folder = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "wwwroot",
-                "uploads",
-                tenantSlug,
-                "products"
-            );
-
-
+            // ESKI LOCAL DOSYA YOLU (R2 MIGRASYONU ICIN COMMENT OLARAK BIRAKILDI)
+            // var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", tenantSlug, "products");
 
             var oldProduct = _productDal.Get(p => p.ProductId == product.ProductId);
 
@@ -195,11 +200,11 @@ namespace Business.Concrete
             // ----------------------------
             if (product.Image == "nophoto.jpg" && oldProduct.Image != "nophoto.jpg")
             {
-                var oldPath = Path.Combine(folder, oldProduct.Image);
-
-                if (System.IO.File.Exists(oldPath))
+                if (!string.IsNullOrWhiteSpace(oldProduct.Image) && !IsCommonImage(oldProduct.Image))
                 {
-                    System.IO.File.Delete(oldPath);
+                    _r2StorageService.DeleteProductImageAsync(tenantSlug, oldProduct.Image)
+                        .GetAwaiter()
+                        .GetResult();
                 }
 
                 product.Image = "nophoto.jpg";
@@ -210,14 +215,11 @@ namespace Business.Concrete
             // ----------------------------
             else if (!string.IsNullOrEmpty(product.Image) && product.Image != oldProduct.Image)
             {
-                if (oldProduct.Image != "noPhoto.jpg")
+                if (!string.IsNullOrWhiteSpace(oldProduct.Image) && !IsCommonImage(oldProduct.Image))
                 {
-                    var oldPath = Path.Combine(folder, oldProduct.Image);
-
-                    if (System.IO.File.Exists(oldPath))
-                    {
-                        System.IO.File.Delete(oldPath);
-                    }
+                    _r2StorageService.DeleteProductImageAsync(tenantSlug, oldProduct.Image)
+                        .GetAwaiter()
+                        .GetResult();
                 }
 
                 product.Image = product.Image;
@@ -328,6 +330,12 @@ namespace Business.Concrete
         public IDataResult<List<Product>> GetFeaturedProduct()
         {
             return new SuccessDataResult<List<Product>>(_productDal.GetAll(a => a.IsFeatured == true));
+        }
+
+        private static bool IsCommonImage(string imageFileName)
+        {
+            return string.Equals(imageFileName, "nophoto.jpg", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(imageFileName, "Quattro-logo.png", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

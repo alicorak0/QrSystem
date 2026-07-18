@@ -39,6 +39,7 @@ namespace Business.Constants.DependencyResolvers.Autofac
             builder.RegisterType<AuthManager>().As<IAuthService>().SingleInstance(); // kim isterse aynı objeyi referansı verir
             builder.RegisterType<JwtHelper>().As<ITokenHelper>().SingleInstance(); // kim isterse aynı objeyi referansı verir
             builder.RegisterType<MasterAuthManager>().As<IMasterAuthService>().SingleInstance(); // kim isterse aynı objeyi referansı verir
+            builder.RegisterType<R2StorageService>().As<IR2StorageService>().SingleInstance();
 
 
             builder.RegisterType<MasterUserManager>().As<IMasterUserService>().SingleInstance(); // kim isterse aynı objeyi referansı verir

@@ -25,6 +25,8 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using System.Net;
+using Amazon.S3;
+using Business.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +54,50 @@ builder.Services.AddSignalR();
 
 // HttpContext
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+    var r2Options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<R2Options>>().Value;
+
+    if (string.IsNullOrWhiteSpace(r2Options.AccessKey)
+        || string.IsNullOrWhiteSpace(r2Options.SecretKey)
+        || string.IsNullOrWhiteSpace(r2Options.BucketName))
+    {
+        throw new InvalidOperationException("R2 configuration is missing. Please fill the R2 section in appsettings.");
+    }
+
+    var hasCustomEndpoint = !string.IsNullOrWhiteSpace(r2Options.Endpoint);
+    if (!hasCustomEndpoint && string.IsNullOrWhiteSpace(r2Options.AccountId))
+    {
+        throw new InvalidOperationException("R2 AccountId is required when R2.Endpoint is not set.");
+    }
+
+    if (!hasCustomEndpoint && r2Options.AccountId.Contains("...", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("R2 AccountId looks like a placeholder ('...'). Please set a real AccountId.");
+    }
+
+    var serviceUrl = hasCustomEndpoint
+        ? r2Options.Endpoint.Trim()
+        : $"https://{r2Options.AccountId.Trim()}.r2.cloudflarestorage.com";
+
+    if (!Uri.TryCreate(serviceUrl, UriKind.Absolute, out var parsedServiceUri)
+        || string.IsNullOrWhiteSpace(parsedServiceUri.Host)
+        || parsedServiceUri.Host.Contains("..", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException($"R2 ServiceURL is invalid: '{serviceUrl}'.");
+    }
+
+    var config = new AmazonS3Config
+    {
+        ServiceURL = parsedServiceUri.ToString(),
+        ForcePathStyle = true,
+        AuthenticationRegion = "auto"
+    };
+
+    return new AmazonS3Client(r2Options.AccessKey, r2Options.SecretKey, config);
+});
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -235,6 +281,8 @@ builder.Services.AddCors(options =>
 var tokenOptions = builder.Configuration.GetSection("TokenOptions")
     .Get<TokenOptions>()
     ?? throw new InvalidOperationException("TokenOptions missing.");
+
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
