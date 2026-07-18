@@ -37,8 +37,12 @@ var allowedCorsOrigins = new[]
     "https://nufusistatistikleri.online",
     "https://www.nufusistatistikleri.online",
      "https://efemkasapizgara.com",
-                "http://efemkasapizgara.com",
-                "https://www.efemkasapizgara.com"
+    "http://efemkasapizgara.com",
+    "https://www.efemkasapizgara.com",
+    "https://quattrocoffee.com.tr",
+    "https://www.quattrocoffee.com.tr",
+
+
 };
 
 // ---------------- SERVICES ----------------
