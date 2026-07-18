@@ -78,6 +78,36 @@ namespace DataAccess.Concrete.InMemory
             throw new NotImplementedException();
         }
 
+        public List<ProductDto> GetAllProductDtos()
+        {
+            throw new NotImplementedException();
+        }
+
+        public List<ProductDto> GetProductDtosByCategoryId(int categoryId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public List<ProductDto> GetProductDtosByCategoryName(string categoryName)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int AddWithRelations(ProductSaveDto productSaveDto)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool UpdateWithRelations(int productId, ProductSaveDto productSaveDto)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool DeleteWithRelations(int productId)
+        {
+            throw new NotImplementedException();
+        }
+
         public List<Product> GetByCategoryName(string categoryName)
         {
             throw new NotImplementedException();

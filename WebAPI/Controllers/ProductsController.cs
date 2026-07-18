@@ -1,4 +1,5 @@
 ﻿using Entities.Concrete;
+using Entities.DTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Business.Abstract;
@@ -96,7 +97,7 @@ namespace WebAPI.Controllers
         [Authorize(Policy = "TenantMatch")] // 🔥 Sadece kendi tenant'ına erişebilir
         [HttpPost("add")]
         [EnableRateLimiting("low")]
-        public async Task<IActionResult> Add(Product product)
+        public async Task<IActionResult> Add([FromBody] ProductSaveDto product)
         {
             var result = _productService.Add(product);
             if (result.Success)
@@ -115,11 +116,11 @@ namespace WebAPI.Controllers
 
         [Authorize(Roles = "admin,superadmin")]
         [Authorize(Policy = "TenantMatch")]
-        [HttpPost("update")]
+        [HttpPost("update/{id}")]
         [EnableRateLimiting("low")]
-        public async Task<IActionResult> Update(Product product)
+        public async Task<IActionResult> Update(int id, [FromBody] ProductSaveDto product)
         {
-            var result = _productService.Update(product);
+            var result = _productService.Update(product, id);
 
             if (result.Success)
             {

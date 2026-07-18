@@ -32,6 +32,9 @@ namespace Business.Constants.DependencyResolvers.Autofac
             builder.RegisterType<CategoryManager>().As<ICategoryService>().SingleInstance(); // kim isterse aynı objeyi referansı verir
             builder.RegisterType<EfCategoryDal>().As<ICategoryDal>().SingleInstance(); // kim isterse aynı objeyi referansı verir
 
+            builder.RegisterType<AllergenManager>().As<IAllergenService>().SingleInstance();
+            builder.RegisterType<EfAllergenDal>().As<IAllergenDal>().SingleInstance();
+
             //authorization and login/sign in
             builder.RegisterType<UserManager>().As<IUserService>().SingleInstance(); // kim isterse aynı objeyi referansı verir
             builder.RegisterType<EfUserDal>().As<IUserDal>().SingleInstance(); // kim isterse aynı objeyi referansı verir

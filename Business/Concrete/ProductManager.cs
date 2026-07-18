@@ -1,157 +1,111 @@
-﻿    using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Business.Abstract;
 using Business.Constants;
 using Business.ValidationRules.FluentValidation;
-using Core.CrossCuttingConcern.Validataion;
+using Core.Aspects.Autofac.Caching;
+using Core.Aspects.Autofac.Performance;
+using Core.Aspects.Autofac.Transaction;
+using Core.Aspects.Autofac.Validation;
+using Core.Utilities.Business;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
-using DataAccess.Concrete.InMemory;
 using Entities.Concrete;
 using Entities.DTOs;
-using FluentValidation;
-using Microsoft.EntityFrameworkCore;
-using Core.Aspects.Autofac.Validation;
-using Business.CCS;
-using Core.Utilities.Business;
-using Business.BusinessAspects.Autofac;
-using Core.Aspects.Autofac.Caching;
-using Core.Aspects.Autofac.Transaction;
-using Core.Aspects.Autofac.Performance;
-using Core.Aspects.Autofac.MyIntereceptor;
-using Microsoft.Extensions.Caching.Memory;
-using Core.Utilities.IoC;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Business.Concrete
 {
-     // Business sadece gelen veriyi bilir nasıl geldiğini değil
     public class ProductManager : IProductService
     {
-        //    InMemoryProductDal _InMemoryProductDal; Bağımlı hale getirir yapma ! Soyutlama ile bilgi alacam
-
-        IProductDal _productDal;
-        ICategoryService _categoryService;
-        private readonly IMemoryCache _memoryCache; // <-- inject edilen cache
+        private readonly IProductDal _productDal;
+        private readonly ICategoryService _categoryService;
+        private readonly IMemoryCache _memoryCache;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IR2StorageService _r2StorageService;
 
-        public ProductManager(IProductDal productDal,ICategoryService categoryService, IMemoryCache memoryCache, IHttpContextAccessor httpContextAccessor, IR2StorageService r2StorageService) // method injection // veri her  yerden gelebilir bağımsız memory or DB
+        public ProductManager(
+            IProductDal productDal,
+            ICategoryService categoryService,
+            IMemoryCache memoryCache,
+            IHttpContextAccessor httpContextAccessor,
+            IR2StorageService r2StorageService)
         {
             _productDal = productDal;
-            _categoryService = categoryService; // Category ilgilend,iren kural varsa servisini dahil ederim
+            _categoryService = categoryService;
             _memoryCache = memoryCache;
             _httpContextAccessor = httpContextAccessor;
             _r2StorageService = r2StorageService;
         }
 
-        [ValidationAspect(typeof(ProductValidator))]
+        [ValidationAspect(typeof(ProductSaveDtoValidator))]
         [CacheRemoveAspect("IProductService.Get")]
-        public IResult Add(Product product)
+        public IResult Add(ProductSaveDto product)
         {
-            //Updatede bu şart var fakat 10 yerine 15 yapınca diğer kural etkilenmez ve aynı kalır
+            product.IngredientNames = NormalizeIngredientNames(product.IngredientNames);
+            product.AllergenIds = NormalizeAllergenIds(product.AllergenIds);
+            product.Image = NormalizeImage(product.Image);
 
-            IResult results=  BusinessRules.Run(CheckIfProductNameExists(product.ProductName),
+            var results = BusinessRules.Run(
+                CheckIfProductNameExists(product.ProductName),
                 CheckIfProductCountOfCategoryError(product.CategoryId)
-                );
+            );
 
-            if(results != null )  //result null dönerse işlemler devam eder Motora bak!
+            if (results != null)
             {
-                return results; 
+                return results;
             }
 
-
-            _productDal.Add(product);   //Entity Repo ile bağlantı DAL'daki
-
-
-            //CACHE
-            // Manuel cache temizleme
-            //_memoryCache.Remove($"IProductService.GetAllByCategory({product.CategoryId})");
-
-            return new SuccessResult(Messages.ProductAdded);  //Result IResulttan türedi  sorun yok
-
-
-
-                
-            //aynı isimde ürün eklenemez kotrnolu yap
-
-
-
-            //ValidataionTool.Validate(new ProductValidator(), product);    Eski version
-
-            //business code yer alacak burada
-
-            //Girişteki Loggeri çalıştır
-            //_logger.Log();
-            //try
-            //{
-            //    _productDal.Add(product);   //Entity Repo ile bağlantı DAL'daki
-
-            //    return new SuccessResult(Messages.ProductAdded);  //Result IResulttan türedi  sorun yok
-
-            //}
-            //catch (Exception exception) 
-            //{
-            //    _logger.Log();
-            //}
-
-            //return new ErrorResult();
-
-
-
-
-            // return new SuccessResult("Ürün başarıyla eklendi");  Mesaj verilmez sadece true döner
-
-
-        }
-
-        [CacheAspect] /// key ,value
-        public IDataResult<List<Product>> GetAll()
-        {
-            
-
-            
-            return new DataResult<List<Product>>(_productDal.GetAll(), true, Messages.ProductListed);
+            _productDal.AddWithRelations(product);
+            return new SuccessResult(Messages.ProductAdded);
         }
 
         [CacheAspect]
-        public IDataResult<List<Product>> GetAllByCategory(int id)
+        public IDataResult<List<ProductDto>> GetAll()
         {
-            return new SuccessDataResult<List<Product>>(_productDal.GetAll(x=>x.CategoryId == id));   
+            return new SuccessDataResult<List<ProductDto>>(_productDal.GetAllProductDtos(), Messages.ProductListed);
         }
 
-         [CacheAspect]
-        [PerformanceAspect(2)] // 5 saniyeyi geçerse uyar   
+        [CacheAspect]
+        public IDataResult<List<ProductDto>> GetAllByCategory(int id)
+        {
+            return new SuccessDataResult<List<ProductDto>>(_productDal.GetProductDtosByCategoryId(id));
+        }
+
+        [CacheAspect]
+        [PerformanceAspect(2)]
         public IDataResult<Product> GetById(int id)
         {
-          //  System.Threading.Thread.Sleep(5000); // 3 saniye
-            return new SuccessDataResult<Product>(_productDal.Get(p=>p.ProductId == id));
+            return new SuccessDataResult<Product>(_productDal.Get(p => p.ProductId == id));
         }
-
 
         [CacheRemoveAspect("IProductService.Get")]
         public IResult Delete(int id)
         {
             var productToDelete = _productDal.Get(p => p.ProductId == id);
             if (productToDelete == null)
-                return new ErrorResult("Ürün bulunamadı");
+            {
+                return new ErrorResult("Urun bulunamadi");
+            }
 
             var tenantSlug = _httpContextAccessor.HttpContext?.Items["TenantSlug"]?.ToString();
-            if (!string.IsNullOrWhiteSpace(tenantSlug) && !string.IsNullOrWhiteSpace(productToDelete.Image) && !IsCommonImage(productToDelete.Image))
+            if (!string.IsNullOrWhiteSpace(tenantSlug)
+                && !string.IsNullOrWhiteSpace(productToDelete.Image)
+                && !IsCommonImage(productToDelete.Image))
             {
                 _r2StorageService.DeleteProductImageAsync(tenantSlug, productToDelete.Image)
                     .GetAwaiter()
                     .GetResult();
             }
 
-            _productDal.Delete(productToDelete);
-            return new SuccessResult("Ürün silindi");
-        }
+            var deleted = _productDal.DeleteWithRelations(id);
+            if (!deleted)
+            {
+                return new ErrorResult("Urun bulunamadi");
+            }
 
+            return new SuccessResult("Urun silindi");
+        }
 
         [CacheAspect]
         public IDataResult<List<ProductDetailDto>> GetProductDetails()
@@ -161,119 +115,97 @@ namespace Business.Concrete
                 return new ErrorDataResult<List<ProductDetailDto>>(Messages.MaintanenceTime);
             }
 
-
-
             return new SuccessDataResult<List<ProductDetailDto>>(_productDal.GetProductDetails());
         }
 
-        //[CacheRemoveAspect("IProductService.Get")]
-        [ValidationAspect(typeof(ProductValidator))]
+        [ValidationAspect(typeof(ProductSaveDtoValidator))]
         [CacheRemoveAspect("IProductService.Get")]
-        public IResult Update(Product product)
+        [TransactionScopeAspect]
+        public IResult Update(ProductSaveDto product, int productId)
         {
+            product.IngredientNames = NormalizeIngredientNames(product.IngredientNames);
+            product.AllergenIds = NormalizeAllergenIds(product.AllergenIds);
 
-            IResult results = BusinessRules.Run(
-    CheckIfProductNameExistsForUpdate(product.ProductId, product.ProductName));
+            var results = BusinessRules.Run(
+                CheckIfProductNameExistsForUpdate(productId, product.ProductName));
 
             if (results != null)
             {
                 return results;
             }
 
-            var tenantSlug = _httpContextAccessor.HttpContext?
-    .Items["TenantSlug"]?.ToString();
+            var tenantSlug = _httpContextAccessor.HttpContext?.Items["TenantSlug"]?.ToString();
             if (string.IsNullOrWhiteSpace(tenantSlug))
             {
                 return new ErrorResult("Tenant bulunamadi");
             }
 
-            // ESKI LOCAL DOSYA YOLU (R2 MIGRASYONU ICIN COMMENT OLARAK BIRAKILDI)
-            // var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", tenantSlug, "products");
-
-            var oldProduct = _productDal.Get(p => p.ProductId == product.ProductId);
-
+            var oldProduct = _productDal.Get(p => p.ProductId == productId);
             if (oldProduct == null)
-                return new ErrorResult("Ürün bulunamadı");
-
-            // ----------------------------
-            // 1) FOTO SİLME DURUMU
-            // ----------------------------
-            if (product.Image == "nophoto.jpg" && oldProduct.Image != "nophoto.jpg")
             {
-                if (!string.IsNullOrWhiteSpace(oldProduct.Image) && !IsCommonImage(oldProduct.Image))
-                {
-                    _r2StorageService.DeleteProductImageAsync(tenantSlug, oldProduct.Image)
-                        .GetAwaiter()
-                        .GetResult();
-                }
-
-                product.Image = "nophoto.jpg";
+                return new ErrorResult("Urun bulunamadi");
             }
 
-            // ----------------------------
-            // 2) YENİ FOTO YÜKLENDİYSE
-            // ----------------------------
-            else if (!string.IsNullOrEmpty(product.Image) && product.Image != oldProduct.Image)
+            var newImage = NormalizeImage(product.Image);
+            if (newImage == "nophoto.jpg" && !string.IsNullOrWhiteSpace(oldProduct.Image) && !IsCommonImage(oldProduct.Image))
             {
-                if (!string.IsNullOrWhiteSpace(oldProduct.Image) && !IsCommonImage(oldProduct.Image))
-                {
-                    _r2StorageService.DeleteProductImageAsync(tenantSlug, oldProduct.Image)
-                        .GetAwaiter()
-                        .GetResult();
-                }
-
-                product.Image = product.Image;
+                _r2StorageService.DeleteProductImageAsync(tenantSlug, oldProduct.Image)
+                    .GetAwaiter()
+                    .GetResult();
             }
-            else
+            else if (!string.IsNullOrWhiteSpace(newImage)
+                     && !string.Equals(newImage, oldProduct.Image, StringComparison.OrdinalIgnoreCase)
+                     && !string.IsNullOrWhiteSpace(oldProduct.Image)
+                     && !IsCommonImage(oldProduct.Image))
             {
-                // foto değişmediyse eskiyi koru
-                product.Image = oldProduct.Image;
+                _r2StorageService.DeleteProductImageAsync(tenantSlug, oldProduct.Image)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            else if (string.IsNullOrWhiteSpace(newImage))
+            {
+                newImage = oldProduct.Image;
             }
 
-            // ----------------------------
-            // 3) CATEGORY LIMIT KONTROL
-            // ----------------------------
-            var result = _productDal.GetAll(p => p.CategoryId == product.CategoryId).Count;
+            product.Image = newImage;
 
+            var result = _productDal.GetAll(p => p.CategoryId == product.CategoryId && p.ProductId != productId).Count;
             if (result >= 1000)
             {
                 return new ErrorResult(Messages.ProductCountOfCategoryError);
             }
 
-            // ----------------------------
-            // 4) UPDATE
-            // ----------------------------
-            _productDal.Update(product);
+            var updated = _productDal.UpdateWithRelations(productId, product);
+            if (!updated)
+            {
+                return new ErrorResult("Urun bulunamadi");
+            }
 
             return new SuccessResult(Messages.ProductUpdated);
         }
 
-        //sadece bu snıfta kullanıalcak check metodu yazılacak public yapmıyacaz
-
-        private IResult CheckIfProductCountOfCategoryError(int categoryId) // hangi kategori istemniyor o gelmeli
+        private IResult CheckIfProductCountOfCategoryError(int categoryId)
         {
-            var result = _productDal.GetAll(p => p.CategoryId == categoryId).Count; // yeni dizini countu yani
+            var result = _productDal.GetAll(p => p.CategoryId == categoryId).Count;
             if (result >= 15)
             {
                 return new ErrorResult(Messages.ProductCountOfCategoryError);
             }
 
             return new SuccessResult();
-         
         }
 
-        private IResult CheckIfProductNameExists(string productName) // hangi kategori istemniyor o gelmeli
+        private IResult CheckIfProductNameExists(string productName)
         {
-            var result = _productDal.GetAll(p => p.ProductName == productName).Any(); // yeni dizini countu yani
+            var result = _productDal.GetAll(p => p.ProductName == productName).Any();
             if (result)
             {
                 return new ErrorResult(Messages.ProductNameAlreadyExists);
             }
 
             return new SuccessResult();
-
         }
-               // Update sırasında çalıştırılan metot
+
         private IResult CheckIfProductNameExistsForUpdate(int productId, string productName)
         {
             var result = _productDal.Get(p =>
@@ -282,54 +214,65 @@ namespace Business.Concrete
 
             if (result != null)
             {
-                return new ErrorResult("Bu isimde başka bir ürün bulunmaktadır.");
+                return new ErrorResult("Bu isimde baska bir urun bulunmaktadir.");
             }
 
             return new SuccessResult();
         }
 
-
-        //private IResult CheckIfCategoryLimitExceded()
-        //{
-        //    var result = _categoryService.GetAll();
-
-        //    if (result.Data.Count > 15)
-        //    {
-        //        return new ErrorResult(Messages.CategoryLimitExceded);
-        //    }
-
-        //    return new SuccessResult();
-        //}
-
-        [TransactionScopeAspect] //Transaction metot olarak işaretleme
+        [TransactionScopeAspect]
         public IResult AddTransactionalTest(Product product)
         {
-          _productDal.Update(product);
+            _productDal.Update(product);
             _productDal.Add(product);
-            return new SuccessResult("Transaction Başarılı -Ürün güncelleme");
-
-
+            return new SuccessResult("Transaction Basarili - Urun guncelleme");
         }
+
         [CacheAspect]
-        public IDataResult<List<Product>> GetByCategoryName(string categoryName)
+        public IDataResult<List<ProductDto>> GetByCategoryName(string categoryName)
         {
-          
-
-  return new SuccessDataResult<List<Product>>(_productDal.GetByCategoryName(categoryName));
-
+            return new SuccessDataResult<List<ProductDto>>(_productDal.GetProductDtosByCategoryName(categoryName));
         }
 
         public IDataResult<List<Product>> ProductSearch(string name)
         {
-
-            return new DataResult<List<Product>>(_productDal.GetAll(x=>EF.Functions.Like(x.ProductName, $"%{name}%")), true, Messages.ProductListed);
-
+            return new DataResult<List<Product>>(
+                _productDal.GetAll(x => EF.Functions.Like(x.ProductName, $"%{name}%")),
+                true,
+                Messages.ProductListed);
         }
 
         [CacheAspect]
         public IDataResult<List<Product>> GetFeaturedProduct()
         {
-            return new SuccessDataResult<List<Product>>(_productDal.GetAll(a => a.IsFeatured == true));
+            return new SuccessDataResult<List<Product>>(_productDal.GetAll(a => a.IsFeatured));
+        }
+
+        private static string NormalizeImage(string? image)
+        {
+            if (string.IsNullOrWhiteSpace(image))
+            {
+                return "nophoto.jpg";
+            }
+
+            return image.Trim();
+        }
+
+        private static List<string> NormalizeIngredientNames(List<string>? ingredientNames)
+        {
+            return (ingredientNames ?? new List<string>())
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static List<int> NormalizeAllergenIds(List<int>? allergenIds)
+        {
+            return (allergenIds ?? new List<int>())
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
         }
 
         private static bool IsCommonImage(string imageFileName)

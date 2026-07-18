@@ -16,6 +16,12 @@ namespace DataAccess.Abstract
         //Daha kolay yolu Entity Repo kullanımı
 
         List<ProductDetailDto> GetProductDetails();
+        List<ProductDto> GetAllProductDtos();
+        List<ProductDto> GetProductDtosByCategoryId(int categoryId);
+        List<ProductDto> GetProductDtosByCategoryName(string categoryName);
+        int AddWithRelations(ProductSaveDto productSaveDto);
+        bool UpdateWithRelations(int productId, ProductSaveDto productSaveDto);
+        bool DeleteWithRelations(int productId);
         
         public  List<Product> GetByCategoryName(string categoryName);
 

@@ -51,6 +51,24 @@ namespace DataAccess.Concrete.EntityFramework
             optionsBuilder.UseSqlServer(builder.ConnectionString);
         }
 
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ProductAllergen>()
+                .HasKey(x => x.Id);
+
+            modelBuilder.Entity<ProductAllergen>()
+                .Property(x => x.Id)
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<ProductAllergen>()
+                .HasIndex(x => new { x.ProductId, x.AllergenId })
+                .IsUnique();
+        }
+
+
         public DbSet<Product> Products { get; set; }
         public DbSet<Category> Categories{ get; set; }
 
@@ -61,5 +79,13 @@ namespace DataAccess.Concrete.EntityFramework
         public DbSet<UserOperationClaims> UserOperationClaims{ get; set; }
 
         public DbSet<FeaturedProducts> FeaturedProducts { get; set; }
+
+        //Alerjen ve içerik tabloları
+        public DbSet<Allergen> Allergens { get; set; }
+
+        public DbSet<ProductAllergen> ProductAllergens { get; set; }
+
+        public DbSet<Ingredient> Ingredients { get; set; }
+
     }
 }

@@ -12,18 +12,18 @@ namespace Business.Abstract  // Veriyi işleme classı olacak
   public  interface IProductService
     {
                  // Frontentin isteyebileceği şeyler brauda yer alacak servis aracları gibi düşün
-        IDataResult<List<Product>> GetAll(); // dikkat tipini list içiereisnde olrak gönderdim    
-        IDataResult<List<Product>> GetAllByCategory(int id);
+        IDataResult<List<ProductDto>> GetAll(); // dikkat tipini list içiereisnde olrak gönderdim    
+        IDataResult<List<ProductDto>> GetAllByCategory(int id);
 
-        public IDataResult<List<Product>> GetByCategoryName(string categoryName);
+        public IDataResult<List<ProductDto>> GetByCategoryName(string categoryName);
 
         IDataResult<List<ProductDetailDto>> GetProductDetails();
 
         IDataResult<Product> GetById(int id); // DALdaki elemanlara erişim yapcam bu ınterface kalıtım alıp class içinde yapacam
 
-        public IResult Add(Product product);   //Voidi IResult tipinde dönsün istiyorum
+        public IResult Add(ProductSaveDto product);   //Voidi IResult tipinde dönsün istiyorum
 
-        public IResult Update (Product product);   //Voidi IResult tipinde dönsün istiyorum
+        public IResult Update (ProductSaveDto product, int productId);   //Voidi IResult tipinde dönsün istiyorum
 
         public IResult AddTransactionalTest(Product product); //Uygulamalarda tutarlılıgı korumak
 

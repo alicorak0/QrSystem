@@ -28,6 +28,11 @@ namespace Entities.Concrete
         //Favroilerde mi
         public bool IsFeatured { get; set; } = false; // öntanımlı olarak false
 
+        //alerjen ve içerik 
+
+        public ICollection<Ingredient> Ingredients { get; set; } = new List<Ingredient>();
+
+        public ICollection<ProductAllergen> ProductAllergens { get; set; } = new List<ProductAllergen>();
 
 
     }

@@ -22,8 +22,8 @@ namespace Business.ValidationRules.FluentValidation
           .WithMessage("Ürün adı en az 2 karakter olmalıdır.");
 
       RuleFor(p => p.ProductName)
-          .MaximumLength(40)
-          .WithMessage("Ürün adı en fazla 40 karakter olabilir.");
+          .MaximumLength(180)
+          .WithMessage("Ürün adı en fazla 180 karakter olabilir.");
 
       RuleFor(p => p.Description)
           .MaximumLength(360)
